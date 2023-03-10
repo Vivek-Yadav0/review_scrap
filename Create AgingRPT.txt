@@ -1,0 +1,41 @@
+
+CREATE table aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPORTING.AgingRPT
+(
+PatientId    INTEGER                
+,PatientFirstName    STRING                
+,PatientMiddleName    STRING                
+,PatientLastName    STRING 
+,Procedure INT64
+,PayerId INT64
+,PayerName STRING
+,LocationId INT64
+,LocationName STRING
+,Balance NUMERIC
+,DOS TIMESTAMP
+,Age INT64
+,RenderingProvider STRING
+,EffectiveDate TIMESTAMP
+,Policytype STRING
+,CurrentZeroToThirtyDays NUMERIC
+,BetweentThirtyFirstandSixtyDays NUMERIC
+,BetweenSixtyOneandNintyDays NUMERIC
+,BetweenNintyOneToOneTwentyDays NUMERIC
+,MoreThanOneTwentyDays NUMERIC
+,LastBilledDate TIMESTAMP
+,AgingBucket STRING
+,patient_uuid STRING
+,reportfinance_uuid STRING
+,payermappingconfiguration_uuid STRING
+,location_uuid STRING
+,billingencounterserviceline_uuid STRING
+,patient_source_timestamp INT64
+,reportfinance_source_timestamp INT64
+,payermappingconfiguration_source_timestamp INT64
+,location_source_timestamp INT64
+,billingencounterserviceline_source_timestamp INT64
+,Create_DateTime TIMESTAMP
+)
+PARTITION BY  Date_trunc(Create_DateTime,  MONTH)
+OPTIONS(
+  description="AgingRPT partition on Patient_source_timestamp "
+);

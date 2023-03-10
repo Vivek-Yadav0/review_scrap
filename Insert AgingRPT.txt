@@ -1,0 +1,211 @@
+declare LastExecutionTimestamp INT64;
+declare CurrentExecutionTimeStamp INT64;
+declare isFirstTimeExecution bool;
+declare current_execution_TimeStamp TIMESTAMP ;
+declare current_0to30Days DATETIME ;
+declare current_30to60Days DATETIME;
+declare current_60to90Days DATETIME;
+declare current_90to120Days DATETIME;
+
+set current_execution_TimeStamp  = CURRENT_TIMESTAMP();
+set current_0to30Days = DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY);
+set  current_30to60Days = DATE_SUB(CURRENT_DATE(), INTERVAL 60 DAY);
+set  current_60to90Days = DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY);
+set  current_90to120Days = DATE_SUB(CURRENT_DATE(), INTERVAL 120 DAY);
+
+Set  LastExecutionTimestamp  = (select LastExecutionTimestamp  from aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPORTING.DailyRpt_LastExecutionTime
+where jobname ='AgingRPTDataRefresh');
+
+if(LastExecutionTimestamp  is null)
+then 
+  set isFirstTimeExecution = true;
+  set LastExecutionTimestamp  = UNIX_MILLIS('1970-01-01 00:00:00 UTC');    
+end if ;
+
+
+--CurrentExecutionTimeStamp;
+SET CurrentExecutionTimeStamp = UNIX_millis(current_execution_TimeStamp);
+
+
+
+
+--insert statment ----
+Insert INTO aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPORTING.AgingRPT(
+ PatientId 
+ ,PatientFirstName
+ ,PatientMiddleName 
+ ,PatientLastName 
+ ,Procedure
+ ,PayerId 
+,PayerName 
+,LocationId 
+,LocationName 
+,Balance 
+,DOS 
+,Age 
+,RenderingProvider 
+,EffectiveDate 
+,Policytype 
+,CurrentZeroToThirtyDays 
+,BetweentThirtyFirstandSixtyDays 
+,BetweenSixtyOneandNintyDays 
+,BetweenNintyOneToOneTwentyDays 
+,MoreThanOneTwentyDays 
+,LastBilledDate 
+,AgingBucket 
+,patient_uuid 
+,reportfinance_uuid 
+,payermappingconfiguration_uuid 
+,location_uuid 
+,billingencounterserviceline_uuid 
+,patient_source_timestamp
+,reportfinance_source_timestamp 
+,payermappingconfiguration_source_timestamp 
+,location_source_timestamp
+,billingencounterserviceline_source_timestamp 
+,Create_DateTime
+)
+Select
+    patients.patientid PatientId,
+    patients.firstname PatientFirstName,
+    patients.middlename PatientMiddleName,
+    patients.lastname PatientLastName,
+    reportfinance.cptcodeid Procedure,
+    reportfinance.payerid PayerId,
+    payermappingconfiguration.payername As PayerName,
+    location.locationid LocationId,
+    location.locationname LocationName,
+    reportfinance.balance Balance,
+    billingencounterserviceline.servicedate DOS,
+   DATE_DIFF(CURRENT_DATE(), CAST(billingencounterserviceline.servicedate AS DATE), DAY) as Age,
+  CASE
+  WHEN provider.middlename IS NOT NULL THEN CONCAT(provider.firstname, ' ', provider.middlename, ' ', provider.lastname)
+  ELSE CONCAT(provider.firstname, ' ', provider.lastname) 
+  END AS RenderingProvider,
+    reportfinance.effectivedate EffectiveDate,
+    payermappingconfiguration.policytype Policytype, 
+  COALESCE(financecurrent.currentzerotothirtydays, 0) AS CurrentZeroToThirtyDays,
+  COALESCE(financethirtyonetosixtydays.betweentthirtyfirstandsixtydays, 0) AS BetweentThirtyFirstandSixtyDays,
+  COALESCE(financesixtyoneandnitnydays.betweensixtyoneandnitnydays, 0) AS BetweenSixtyOneandNintyDays,
+  COALESCE(financenintyonetoonetwentydays.betweennintyonetoonetwentydays, 0) AS BetweenNintyOneToOneTwentyDays,
+  COALESCE(financemorethanonetwentydays.morethanonetwentydays, 0) AS MoreThanOneTwentyDays,
+  lastbilled.effectivedate LastBilledDate,
+   null as Agingbucket,
+   patients.datastream_metadata.uuid patient_uuid,
+   reportfinance.datastream_metadata.uuid reportfinance_uuid,
+   payermappingconfiguration.datastream_metadata.uuid   payermappingconfiguration_uuid,
+   location.datastream_metadata.uuid location_uuid,
+   billingencounterserviceline.datastream_metadata.uuid billingencounterserviceline_uuid
+   ,patients.datastream_metadata.source_timestamp patient_source_timestamp
+   ,reportfinance.datastream_metadata.source_timestamp reportfinance_source_timestamp
+   ,payermappingconfiguration.datastream_metadata.source_timestamp payermappingconfiguration_source_timestamp
+   ,location.datastream_metadata.source_timestamp location_source_timestamp
+   ,billingencounterserviceline.datastream_metadata.source_timestamp billingencounterserviceline_source_timestamp
+   ,current_execution_TimeStamp
+FROM aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPLICATED_DATA.masterdb_reportfinance reportfinance
+LEFT JOIN aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPLICATED_DATA.masterdb_patients patients
+on reportfinance.patientid = patients.patientid
+LEFT JOIN aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPLICATED_DATA.masterdb_location location
+on reportfinance.locationId = location.locationId
+LEFT JOIN aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPLICATED_DATA.masterdb_billingencounterserviceline billingencounterserviceline
+on reportfinance.billingencounterservicelineid =
+billingencounterserviceline.billingencounterservicelineid
+LEFT JOIN aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPLICATED_DATA.masterdb_providers provider 
+on reportfinance.providerid = provider.providerid
+LEFT JOIN aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPLICATED_DATA.masterdb_payermappingconfiguration payermappingconfiguration  
+on reportfinance.providerid = payermappingconfiguration.payerid
+
+LEFT JOIN (
+  SELECT reportfinance.patientid,
+         reportfinance.reportfinanceid,
+         SUM(reportfinance.balance) AS currentzerotothirtydays
+  FROM aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPLICATED_DATA.masterdb_reportfinance reportfinance
+  WHERE DATE(reportfinance.createdon) < current_0to30Days
+  GROUP BY reportfinance.patientid, reportfinance.reportfinanceid
+) financecurrent 
+ON financecurrent.reportfinanceid = reportfinance.reportfinanceid
+
+LEFT JOIN 
+  (SELECT reportfinance.patientid,reportfinance.reportfinanceid,
+     SUM(reportfinance.balance) AS betweentthirtyfirstandsixtydays
+   FROM 
+    aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPLICATED_DATA.masterdb_reportfinance reportfinance
+   WHERE 
+    DATE(reportfinance.createdon) >= current_30to60Days
+     AND DATE(reportfinance.createdon) < current_0to30Days
+   GROUP BY 
+     reportfinance.patientid, reportfinance.reportfinanceid) financethirtyonetosixtydays 
+ON 
+  financethirtyonetosixtydays.reportfinanceid = reportfinance.reportfinanceid
+
+LEFT JOIN 
+  (SELECT reportfinance.patientid,reportfinance.reportfinanceid,
+     SUM(reportfinance.balance) AS betweensixtyoneandnitnydays
+   FROM 
+     aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPLICATED_DATA.masterdb_reportfinance reportfinance
+   WHERE 
+    DATE(reportfinance.createdon) >= current_60to90Days
+     AND DATE(reportfinance.createdon) < current_30to60Days
+   GROUP BY 
+     reportfinance.patientid, reportfinance.reportfinanceid) financesixtyoneandnitnydays 
+ON 
+  financesixtyoneandnitnydays.reportfinanceid = reportfinance.reportfinanceid
+LEFT JOIN 
+  (SELECT reportfinance.patientid,reportfinance.reportfinanceid,
+     SUM(reportfinance.balance) AS betweennintyonetoonetwentydays
+   FROM 
+aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPLICATED_DATA.masterdb_reportfinance reportfinance
+   WHERE 
+     DATE(reportfinance.createdon)  >= DATE_SUB(CURRENT_DATE(), INTERVAL 120 DAY) 
+     AND  DATE(reportfinance.createdon)  < current_60to90Days
+   GROUP BY 
+     reportfinance.patientid, reportfinance.reportfinanceid) financenintyonetoonetwentydays 
+ON 
+  financenintyonetoonetwentydays.reportfinanceid = reportfinance.reportfinanceid
+LEFT JOIN 
+ (SELECT reportfinance.patientid,reportfinance.reportfinanceid,
+     SUM(reportfinance.balance) AS morethanonetwentydays
+   FROM 
+     aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPLICATED_DATA.masterdb_reportfinance reportfinance
+   WHERE 
+    DATE(reportfinance.createdon) > current_90to120Days
+   GROUP BY 
+     reportfinance.patientid, reportfinance.reportfinanceid) financemorethanonetwentydays 
+ON 
+  financemorethanonetwentydays.reportfinanceid = reportfinance.reportfinanceid
+
+LEFT JOIN ( SELECT reportfinance.patientid, max(reportfinance.effectivedate) AS effectivedate 
+FROM aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPLICATED_DATA.masterdb_reportfinance reportfinance
+          GROUP BY reportfinance.patientid) lastbilled ON lastbilled.patientid = reportfinance.patientid
+          where 
+  (reportfinance.datastream_metadata.source_timestamp  > LastExecutionTimestamp)
+  or (patients.datastream_metadata.source_timestamp > LastExecutionTimestamp)
+  or (location.datastream_metadata.source_timestamp  > LastExecutionTimestamp)
+  or (BillingEncounterServiceline.datastream_metadata.source_timestamp > LastExecutionTimestamp)
+  or (payermappingconfiguration.datastream_metadata.source_timestamp > LastExecutionTimestamp)
+;
+
+UPDATE   aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPORTING.AgingRPT SET AgingBucket = 
+  CASE 
+    WHEN Age < 30 THEN 'Current (0-30 days)'
+    WHEN Age BETWEEN 31 AND 60 THEN 'Between 31 and 60 days'
+    WHEN Age BETWEEN 61 AND 90 THEN 'Between 61 and 90 days'
+    WHEN Age BETWEEN 91 AND 120 THEN 'Between 91 and 120 days'
+    WHEN Age > 120 THEN 'More than 120 days'
+    
+    ELSE ''
+    
+  END
+  Where AgingBucket is Null;
+if(isFirstTimeExecution = true)
+then 
+    INSERT INTO aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPORTING.DailyRpt_LastExecutionTime
+    (
+      jobname, LastExecutionTimestamp
+    )
+    select 'AgingRPTDataRefresh', CurrentExecutionTimeStamp;   
+
+else 
+    update  aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPORTING.DailyRpt_LastExecutionTime set         lastexecutiontimestamp =currentexecutiontimestamp
+    where jobname = 'AgingRPTDataRefresh';
+ end if;

@@ -1,0 +1,27 @@
+Create MATERIALIZED VIEW aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPORTING.vwAgingRPT as
+
+Select
+    AgingRPT.PatientId PatientId ,
+    AgingRPT.PatientFirstName PatientFirstName,
+    AgingRPT.PatientMiddleName PatientMiddleName,
+    AgingRPT.PatientLastName PatientLastName,
+    AgingRPT.Procedure Procedure,
+    AgingRPT.PayerId PayerId,
+    AgingRPT.PayerName PayerName, 
+    AgingRPT.LocationId  LocationId,
+    AgingRPT.LocationName  LocationName, 
+    AgingRPT.Balance Balance,
+    AgingRPT.DOS DOS,
+    AgingRPT.Age Age, 
+    AgingRPT.renderingprovider RenderingProvider,
+    AgingRPT.EffectiveDate EffectiveDate,
+    AgingRPT.Policytype Policytype,
+    AgingRPT.CurrentZeroToThirtyDays  CurrentZeroToThirtyDays,
+    AgingRPT.BetweentThirtyFirstandSixtyDays BetweentThirtyFirstAndSixtyDays, 
+    AgingRPT.BetweenSixtyOneandNintyDays BetweenSixtyOneAndNitnyDays, 
+    AgingRPT.BetweenNintyOneToOneTwentyDays BetweenNintyOnetoOneTwentyDays, 
+    AgingRPT.MoreThanOneTwentyDays MoreThanOneTwentyDays,
+    AgingRPT.LastBilledDate LastBilledDate,
+    AgingRPT.AgingBucket AgingBucket
+
+FROM aeg-datalake.97b530ae_f6fc_49bd_968e_710a33034264_FOCUS_PROD_REPORTING.AgingRPT
